@@ -103,5 +103,5 @@ request_id,item_id,recipient_username,status
 - **CSV Import/Export** for better data handling.
 
 ---
-This document serves as a guide for structuring and managing our project efficiently. Let’s make a positive impact with our C programming skills! 🚀
+This document serves as a guide for structuring and managing our project efficiently.
 
