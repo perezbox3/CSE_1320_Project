@@ -1,0 +1,3 @@
+username,password,role
+john_doe,12345,donor
+jane_smith,password,recipient
