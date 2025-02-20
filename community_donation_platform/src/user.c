@@ -6,11 +6,14 @@
 
 void load_users(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS]); //loads the users.txt list to memory
 
-int login(char inusername[MAX_USER_CHARS], char inpassword[MAX_USER_CHARS]);
+void login(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS], int *userid);
 void signup();
 
 int main()
 {
+    int userid = -1; // setting the userid to logged out -1==logged out
+    int user_type=-1; // 1 for donor, 2 for recipient -1==unassigned
+
     ///////////////////////////////////////////// prepping the user list
 
     int uListCols=0;
@@ -65,17 +68,16 @@ int main()
         switch(choice)
         {
             case 1:
-                {
-                    char inusername[21];
-                    char inpassword[21];
-
-                    printf("Enter the username: ");
-                    scanf("%s", &inusername);
-
-                    printf("Enter the password: ");
-                    scanf("%s", &inpassword);
-
-                    login(inusername, inpassword);
+                {                    
+                    login(uListCols, userlist, &userid);
+                    printf("ID: %d\n", userid); // userid is the column number of the username in the array
+                    
+                    if (strcmp(userlist[2][userid],"donor")==0)
+                        user_type=1;
+                    else if (strcmp(userlist[2][userid],"recipient")==0)
+                        user_type=2;
+                    else
+                        user_type=-1;
                     mLoop=0;
                     break;
                 }
@@ -100,6 +102,28 @@ int main()
     } while (mLoop==1);
     /////////////////////////////////////////////////////////
 
+    do{
+        if (user_type == 1) //1 means donor
+            printf("Role is donor\n");
+        else if (user_type == 2) //2 means recipient
+            printf("Role is recipient\n");
+        else
+            printf("Role is unassigned\n");
+        
+        printf("0=Logout\n");
+        scanf("%d", &choice);
+        switch(choice)
+        {
+            case 0:
+                {
+                    userid = -1;
+                    printf("You have been logged out.");
+                    break;
+                }
+        }
+        
+    } while (userid != -1);
+
     return 0;
 }
 
@@ -114,7 +138,7 @@ void load_users(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS])
     }
 
     char buffer[64];
-    fgets(buffer, sizeof(buffer), fuserptr);
+    fgets(buffer, sizeof(buffer), fuserptr); //ignores the first line of user.txt
     
     int i=0; //ignores the first column
     while (i < uListCols && fscanf(fuserptr, "%20[^,],%20[^,],%20[^\n]\n", userlist[0][i], userlist [1][i], userlist[2][i]) == 3)
@@ -125,12 +149,36 @@ void load_users(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS])
     fclose(fuserptr);
 }
 
-int login(char inusername[21], char inpassword[21])
+void login(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS], int *userid)
 {
-    int user_type=-1; // 1 for donor, 2 for recipient
-    printf("login"); //temporary
-    
-    return user_type;
+
+    char inusername[MAX_USER_CHARS]="";
+    char inpassword[MAX_USER_CHARS]="";
+
+    int usernameCol=-1;
+
+    printf("Enter the username: ");
+    scanf(" %s", &inusername);
+
+    for(int x=0; x < uListCols; x++) //find column with matching username and set the password check to that column
+    {
+        if(strcmp(inusername, userlist[0][x]) == 0)
+        {
+            usernameCol=x;
+        }
+    }
+
+    printf("Enter the password: ");
+    scanf(" %s", &inpassword);
+
+    if(strcmp(inpassword, userlist[1][usernameCol]) == 0) // check if password = username password
+    {
+        printf("Login successful.");
+        *userid = usernameCol;
+    } else
+    {
+        printf("Login unsuccessful. Please check if the username or password is correct.");
+    }
 }
 
 void signup()
