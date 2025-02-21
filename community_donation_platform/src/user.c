@@ -7,7 +7,7 @@
 void load_users(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS]); //loads the users.txt list to memory
 
 void login(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS], int *userid);
-void signup();
+void signup(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS]);
 
 int main()
 {
@@ -83,7 +83,7 @@ int main()
                 }
             case 2:
                 {
-                    signup();
+                    signup(uListCols, userlist);
                     mLoop=0;
                     break;
                 }
@@ -100,9 +100,11 @@ int main()
                 }
         }
     } while (mLoop==1);
-    /////////////////////////////////////////////////////////
 
-    do{
+    ///////////////////////////////////////////////////////// logged in menu
+
+    while (userid != -1)
+    {
         if (user_type == 1) //1 means donor
             printf("Role is donor\n");
         else if (user_type == 2) //2 means recipient
@@ -111,6 +113,7 @@ int main()
             printf("Role is unassigned\n");
         
         printf("0=Logout\n");
+        printf("Please enter the number of your choice and press enter: ");
         scanf("%d", &choice);
         switch(choice)
         {
@@ -122,8 +125,11 @@ int main()
                 }
         }
         
-    } while (userid != -1);
+    }
 
+    /////////////////////////////////////
+
+    printf("Quitting program...");
     return 0;
 }
 
@@ -140,7 +146,7 @@ void load_users(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS])
     char buffer[64];
     fgets(buffer, sizeof(buffer), fuserptr); //ignores the first line of user.txt
     
-    int i=0; //ignores the first column
+    int i=0;
     while (i < uListCols && fscanf(fuserptr, "%20[^,],%20[^,],%20[^\n]\n", userlist[0][i], userlist [1][i], userlist[2][i]) == 3)
     {
         i++;
@@ -181,8 +187,73 @@ void login(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS], int *user
     }
 }
 
-void signup()
+void signup(int uListCols, char userlist[3][uListCols][MAX_USER_CHARS])
 {
-    printf("signup"); //temporary
+    char signup_username[MAX_USER_CHARS]="";
+    char signup_password[MAX_USER_CHARS]="";
+    char role[10] = "none";
+    int signup_role = -1;
 
-}
+    printf("signup\n"); //temporary
+    FILE *fuserptr=NULL;
+    fuserptr = fopen(USER_FILE_PATH, "a");
+
+    if (fuserptr==NULL)
+    {
+        printf("Opening users.txt for load_users failed.");
+    }
+
+    int unique_username=0;
+    while (unique_username == 0)
+    {
+        printf("Please enter the username(20 characters and no spaces): ");
+        scanf("%s", &signup_username);
+
+        for (int x = 0; x < uListCols; x++)
+        {
+            if (strcmp(signup_username, userlist[0][x]) == 0)
+            {
+                printf("Username taken. Please choose a different username.\n");
+                unique_username=0;
+                break;
+            } else
+            {
+                unique_username=1;
+                break;
+            }
+        }
+    }
+
+    printf("Please enter the password(20 characters and no spaces): ");
+    scanf("%s", &signup_password);
+    printf("1 for donor role\n");
+    printf("2 for recipient role\n");
+    printf("Please enter the number for your role and press enter: ");
+    scanf("%d", &signup_role);
+
+    if (signup_role == 1)
+    {
+        strcpy(role, "donor");
+    }
+    else if (signup_role == 2)
+    {
+        strcpy(role, "recipient");
+    }
+
+    fseek(fuserptr, -1, SEEK_END);
+    char cn = getc(fuserptr);
+
+    fseek(fuserptr, 0, SEEK_END);
+    char ceof = getc(fuserptr);
+
+    if (cn != '\n' && ceof == EOF)
+    {
+        fprintf(fuserptr, "\n");
+    }
+
+    fprintf(fuserptr, "%s,%s,%s", signup_username, signup_password, role);
+
+    fclose(fuserptr);
+
+
+} 
