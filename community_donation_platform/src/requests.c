@@ -1,20 +1,70 @@
 #include "requests.h"
 #include "items.h"
+#include <ctype.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-// Function to request an item
+//------------------------------------
+// Helper function to clear input buffer.
+//------------------------------------
+static void clear_input_buffer() {
+    int ch;
+    while ((ch = getchar()) != '\n' && ch != EOF);
+}
+
+//------------------------------------
+// Converts a string to lowercase.
+//------------------------------------
+static void local_to_lowercase(char *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = tolower(str[i]);
+    }
+}
+
+//------------------------------------
+// Requests an item by first listing available items.
+//------------------------------------
 void request_item(char *recipient_username) {
-    // First check if the item exists and is available
+    // List available items.
+    display_items();
+    FILE *itemFile = fopen(ITEM_FILE_PATH, "r");
+    int available = 0;
+    if (itemFile) {
+        char itemHeader[100];
+        fgets(itemHeader, sizeof(itemHeader), itemFile); // Skip header.
+        Item temp;
+        while (fscanf(itemFile, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
+                      &temp.item_id, temp.donor_username, temp.category,
+                      temp.description, temp.condition, temp.status) != EOF) {
+            if (strcmp(temp.status, "available") == 0) {
+                available = 1;
+                break;
+            }
+        }
+        fclose(itemFile);
+    }
+    if (!available) {
+        printf("No available items to request.\n");
+        return;
+    }
     int item_id;
     printf("Enter the ID of the item you want to request: ");
-    scanf("%d", &item_id);
+    if (scanf("%d", &item_id) != 1) {
+        printf("Invalid input for item ID.\n");
+        clear_input_buffer();
+        return;
+    }
+    clear_input_buffer();
 
-    // Verify item exists and is available
-    FILE *itemFile = fopen(ITEM_FILE_PATH, "r");
+    // Verify the item exists and is available.
+    itemFile = fopen(ITEM_FILE_PATH, "r");
     if (!itemFile) {
         printf("Error: No items available.\n");
         return;
     }
-
+    char itemHeader[100];
+    fgets(itemHeader, sizeof(itemHeader), itemFile); // Skip header.
     Item temp_item;
     int item_found = 0;
     while (fscanf(itemFile, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
@@ -26,59 +76,76 @@ void request_item(char *recipient_username) {
         }
     }
     fclose(itemFile);
-
     if (!item_found) {
         printf("Error: Item not found or not available.\n");
         return;
     }
-
     FILE *file = fopen(REQUEST_FILE_PATH, "a");
     if (!file) {
         printf("Error: Unable to open requests.txt for writing.\n");
         return;
     }
-
-    // Determine request ID (increment based on file content)
     int last_id = 0;
     FILE *readFile = fopen(REQUEST_FILE_PATH, "r");
     if (readFile) {
-        Request temp;
+        char reqHeader[100];
+        fgets(reqHeader, sizeof(reqHeader), readFile); // Skip header.
+        Request tempReq;
         while (fscanf(readFile, "%d,%d,%20[^,],%20[^\n]\n",
-                      &temp.request_id, &temp.item_id, temp.recipient_username, temp.status) != EOF) {
-            last_id = temp.request_id;
+                      &tempReq.request_id, &tempReq.item_id, tempReq.recipient_username, tempReq.status) != EOF) {
+            last_id = tempReq.request_id;
         }
         fclose(readFile);
     }
-
     int request_id = last_id + 1;
     fprintf(file, "%d,%d,%s,pending\n", request_id, item_id, recipient_username);
     fclose(file);
-
     printf("Request successfully submitted!\n");
 }
 
-// Function to approve or reject a request
+//------------------------------------
+// Approves or rejects a request.
+//------------------------------------
 void approve_request(char *donor_username) {
+    if (count_pending_requests(donor_username) == 0) {
+        printf("No pending requests for approval.\n");
+        return;
+    }
+    printf("\nPending Requests for Approval:\n");
+    view_inbox(donor_username);
     int request_id;
     char decision[10];
     printf("Enter the ID of the request to approve/reject: ");
-    scanf("%d", &request_id);
+    if (scanf("%d", &request_id) != 1) {
+        printf("Invalid input for request ID.\n");
+        clear_input_buffer();
+        return;
+    }
+    clear_input_buffer();
     printf("Enter decision (approve/reject): ");
-    scanf("%s", decision);
+    if (scanf("%9s", decision) != 1) {
+        printf("Invalid input for decision.\n");
+        clear_input_buffer();
+        return;
+    }
+    clear_input_buffer();
+    local_to_lowercase(decision);
 
     FILE *file = fopen(REQUEST_FILE_PATH, "r");
     if (!file) {
         printf("Error: Unable to open requests.txt for reading.\n");
         return;
     }
-
+    char reqHeader[100];
+    fgets(reqHeader, sizeof(reqHeader), file); // Skip header.
     FILE *tempFile = fopen("../data/temp_requests.txt", "w");
     if (!tempFile) {
         printf("Error: Unable to create temporary file.\n");
         fclose(file);
         return;
     }
-
+    // Write header line.
+    fprintf(tempFile, "request_id,item_id,recipient_username,status\n");
     Request temp;
     int found = 0;
     while (fscanf(file, "%d,%d,%20[^,],%20[^\n]\n",
@@ -92,56 +159,170 @@ void approve_request(char *donor_username) {
                 strcpy(temp.status, "rejected");
             } else {
                 printf("Invalid decision. Request not updated.\n");
-                fprintf(tempFile, "%d,%d,%s,%s\n", temp.request_id, temp.item_id, temp.recipient_username, temp.status);
+                fprintf(tempFile, "%d,%d,%s,%s\n", temp.request_id, temp.item_id,
+                        temp.recipient_username, temp.status);
                 continue;
             }
         }
-        fprintf(tempFile, "%d,%d,%s,%s\n", temp.request_id, temp.item_id, temp.recipient_username, temp.status);
+        fprintf(tempFile, "%d,%d,%s,%s\n", temp.request_id, temp.item_id,
+                temp.recipient_username, temp.status);
     }
-
     fclose(file);
     fclose(tempFile);
-
     if (!found) {
         printf("Request ID not found.\n");
         remove("../data/temp_requests.txt");
     } else {
         remove(REQUEST_FILE_PATH);
-        rename("../data/temp_requests.txt", REQUEST_FILE_PATH);
-        printf("Request successfully updated.\n");
+        if (rename("../data/temp_requests.txt", REQUEST_FILE_PATH) != 0) {
+            printf("Error: Unable to update requests file.\n");
+        } else {
+            printf("Request successfully updated.\n");
+        }
     }
 }
 
-// Function to update the status of an item
-void update_status(int item_id, char *new_status) {
-    FILE *file = fopen(ITEM_FILE_PATH, "r");
-    if (!file) {
-        printf("Error: Unable to open items.txt for reading.\n");
+//------------------------------------
+// update_status is defined in items.c; do not redefine here.
+//------------------------------------
+
+//------------------------------------
+// Views the donor's inbox (pending requests).
+//------------------------------------
+void view_inbox(char *donor_username) {
+    FILE *reqFile = fopen(REQUEST_FILE_PATH, "r");
+    if (!reqFile) {
+        printf("No request notifications available.\n");
         return;
     }
-
-    FILE *tempFile = fopen("../data/temp_items.txt", "w");
-    if (!tempFile) {
-        printf("Error: Unable to create temporary file.\n");
-        fclose(file);
-        return;
-    }
-
-    Item temp;
-    while (fscanf(file, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
-                  &temp.item_id, temp.donor_username, temp.category, temp.description,
-                  temp.condition, temp.status) != EOF) {
-        if (temp.item_id == item_id) {
-            strcpy(temp.status, new_status);
+    char header[100];
+    fgets(header, sizeof(header), reqFile); // Skip header.
+    int found = 0;
+    Request req;
+    printf("\nInbox - Pending Requests:\n");
+    printf("-------------------------------------------------\n");
+    printf("ReqID | ItemID | Recipient\n");
+    printf("-------------------------------------------------\n");
+    while (fscanf(reqFile, "%d,%d,%20[^,],%20[^\n]\n",
+                  &req.request_id, &req.item_id, req.recipient_username, req.status) != EOF) {
+        if (strcmp(req.status, "pending") == 0) {
+            FILE *itemFile = fopen(ITEM_FILE_PATH, "r");
+            if (!itemFile) {
+                printf("Error: Unable to open items.txt.\n");
+                continue;
+            }
+            char itemHeader[100];
+            fgets(itemHeader, sizeof(itemHeader), itemFile); // Skip header.
+            Item item;
+            int donorMatch = 0;
+            while (fscanf(itemFile, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
+                          &item.item_id, item.donor_username, item.category, item.description,
+                          item.condition, item.status) != EOF) {
+                if (item.item_id == req.item_id && strcmp(item.donor_username, donor_username) == 0) {
+                    donorMatch = 1;
+                    break;
+                }
+            }
+            fclose(itemFile);
+            if (donorMatch) {
+                printf("%-6d| %-7d| %-20s\n", req.request_id, req.item_id, req.recipient_username);
+                found = 1;
+            }
         }
-        fprintf(tempFile, "%d,%s,%s,%s,%s,%s\n",
-                temp.item_id, temp.donor_username, temp.category, temp.description,
-                temp.condition, temp.status);
     }
+    fclose(reqFile);
+    if (!found) {
+        printf("No pending notifications.\n");
+    }
+}
 
-    fclose(file);
-    fclose(tempFile);
+//------------------------------------
+// Counts pending requests for items owned by the donor.
+//------------------------------------
+int count_pending_requests(char *donor_username) {
+    FILE *reqFile = fopen(REQUEST_FILE_PATH, "r");
+    if (!reqFile) {
+        return 0;
+    }
+    char header[100];
+    fgets(header, sizeof(header), reqFile); // Skip header.
+    int count = 0;
+    Request req;
+    while (fscanf(reqFile, "%d,%d,%20[^,],%20[^\n]\n",
+                  &req.request_id, &req.item_id, req.recipient_username, req.status) != EOF) {
+        if (strcmp(req.status, "pending") == 0) {
+            FILE *itemFile = fopen(ITEM_FILE_PATH, "r");
+            if (!itemFile) {
+                continue;
+            }
+            char itemHeader[100];
+            fgets(itemHeader, sizeof(itemHeader), itemFile); // Skip header.
+            Item item;
+            int donorMatch = 0;
+            while (fscanf(itemFile, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
+                          &item.item_id, item.donor_username, item.category, item.description,
+                          item.condition, item.status) != EOF) {
+                if (item.item_id == req.item_id && strcmp(item.donor_username, donor_username) == 0) {
+                    donorMatch = 1;
+                    break;
+                }
+            }
+            fclose(itemFile);
+            if (donorMatch) {
+                count++;
+            }
+        }
+    }
+    fclose(reqFile);
+    return count;
+}
 
-    remove(ITEM_FILE_PATH);
-    rename("../data/temp_items.txt", ITEM_FILE_PATH);
+//------------------------------------
+// Views approved items (inventory) for the recipient.
+//------------------------------------
+void view_inventory(char *recipient_username) {
+    FILE *reqFile = fopen(REQUEST_FILE_PATH, "r");
+    if (!reqFile) {
+        printf("No inventory records available.\n");
+        return;
+    }
+    char header[100];
+    fgets(header, sizeof(header), reqFile); // Skip header.
+    int found = 0;
+    Request req;
+    printf("\nYour Inventory (Approved Items):\n");
+    printf("---------------------------------------------------------------\n");
+    printf("ReqID | ItemID | Category         | Description\n");
+    printf("---------------------------------------------------------------\n");
+    while (fscanf(reqFile, "%d,%d,%20[^,],%20[^\n]\n",
+                  &req.request_id, &req.item_id, req.recipient_username, req.status) != EOF) {
+        if (strcmp(req.status, "approved") == 0 && strcmp(req.recipient_username, recipient_username) == 0) {
+            FILE *itemFile = fopen(ITEM_FILE_PATH, "r");
+            if (!itemFile) {
+                continue;
+            }
+            char itemHeader[100];
+            fgets(itemHeader, sizeof(itemHeader), itemFile); // Skip header.
+            Item item;
+            int itemFound = 0;
+            while (fscanf(itemFile, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
+                          &item.item_id, item.donor_username, item.category, item.description,
+                          item.condition, item.status) != EOF) {
+                if (item.item_id == req.item_id) {
+                    itemFound = 1;
+                    break;
+                }
+            }
+            fclose(itemFile);
+            if (itemFound) {
+                printf("%-6d| %-7d| %-17s| %s\n", req.request_id, req.item_id,
+                       item.category, item.description);
+                found = 1;
+            }
+        }
+    }
+    fclose(reqFile);
+    if (!found) {
+        printf("Your inventory is empty.\n");
+    }
 }
