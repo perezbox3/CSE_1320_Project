@@ -3,6 +3,7 @@
 #include <string.h>
 #include "user.h"
 #include "items.h"
+#include "requests.h"
 
 int main() {
     int choice;
@@ -47,11 +48,12 @@ int main() {
 
         if (strcmp(logged_in_role, "donor") == 0) {
             printf("3. Add an Item\n");
+            printf("4. Approve/Reject Requests\n");
         } else if (strcmp(logged_in_role, "recipient") == 0) {
-            printf("3. Request an Item (Feature Not Implemented Yet)\n");
+            printf("3. Request an Item\n");
         }
 
-        printf("4. Logout\n");
+        printf("5. Logout\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
 
@@ -65,11 +67,18 @@ int main() {
             case 3:
                 if (strcmp(logged_in_role, "donor") == 0) {
                     add_item();
-                } else {
-                    printf("Feature not implemented yet.\n");
+                } else if (strcmp(logged_in_role, "recipient") == 0) {
+                    request_item(logged_in_user);
                 }
                 break;
             case 4:
+                if (strcmp(logged_in_role, "donor") == 0) {
+                    approve_request(logged_in_user);
+                } else {
+                    printf("Invalid choice.\n");
+                }
+                break;
+            case 5:
                 printf("Logging out...\n");
                 return 0;
             default:
