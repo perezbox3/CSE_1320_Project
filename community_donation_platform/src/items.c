@@ -1,65 +1,53 @@
+// This program is a simple donation management system using a file called "items.txt".
+// We can add items to the file, show what's available, search them by category, and update their status.
+// There are also helper functions to handle input and convert strings to lowercase.
+
 #include "items.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * clear_input_buffer()
- * --------------------
- * A helper function that flushes the standard input buffer.
- * It loops until it encounters a newline character or end of file.
- * This prevents leftover characters (like newline from scanf) from affecting subsequent input.
- */
+// This function just clears any leftover characters in stdin
 static void clear_input_buffer() {
     int ch;
     while ((ch = getchar()) != '\n' && ch != EOF);
 }
 
-/*
- * to_lowercase(char *str)
- * -------------------------
- * Converts all characters in the input string to lowercase.
- *
- * Parameters:
- *   str - A pointer to the string to be converted.
- *
- * This function iterates over the string and uses the C library function tolower()
- * to change each character to its lowercase equivalent.
- */
+// Makes all letters in a string lowercase
 void to_lowercase(char *str) {
     for (int i = 0; str[i]; i++) {
         str[i] = tolower(str[i]);
     }
 }
 
-/*
- * add_item()
- * -----------
- * Prompts the user to input details for a new donation item and writes this item to the items file.
- *
- * Process:
- *   1. Opens the items file (with "a+" mode to allow appending and reading).
- *   2. Prompts and reads the donor's username, item category, description, and condition.
- *   3. Sets the default status of the item to "available".
- *   4. Determines a new unique item_id by reading through the file (skipping the header).
- *   5. Appends the new item to the file.
- *   6. Closes the file and confirms the addition.
- *
- * Error Handling:
- *   If any input is invalid or if a file cannot be opened, the function prints an error message,
- *   flushes the input buffer when necessary, and safely returns.
- */
+// Lets you add a new item to the items file by asking for info from the user
 void add_item() {
-    FILE *file = fopen(ITEM_FILE_PATH, "a+");
+    FILE *file = fopen(ITEM_FILE_PATH, "a+");  // Changed to a+
     if (!file) {
         printf("Error: Unable to open items.txt for writing.\n");
         return;
     }
 
+    // If the file is empty, write a header first
+    fseek(file, 0, SEEK_END);
+    long fileSize = ftell(file);
+    
+    if (fileSize == 0) {
+        fprintf(file, "item_id,donor_username,category,description,condition,status\n");
+    } else if (fileSize > 0) {
+        // Check if the last character is a newline
+        fseek(file, -1, SEEK_END);
+        char lastChar = fgetc(file);
+        if (lastChar != '\n') {
+            fprintf(file, "\n");  // Add a newline if needed
+        }
+        fseek(file, 0, SEEK_END);  // Move back to end for appending
+    }
+
     Item newItem;
 
-    // Prompt and read the donor's username.
+    // Ask for username
     printf("Enter your username: ");
     if (scanf("%20s", newItem.donor_username) != 1) {
         printf("Invalid input for username.\n");
@@ -67,19 +55,18 @@ void add_item() {
         fclose(file);
         return;
     }
-    clear_input_buffer();  // Clear newline from the input
+    clear_input_buffer();
 
-    // Prompt and read the category. Using fgets to allow spaces.
+    // Ask for category (we use fgets to include spaces)
     printf("Enter category (e.g., Clothes, Furniture, Electronics, Books, etc.): ");
     if (fgets(newItem.category, sizeof(newItem.category), stdin) == NULL) {
         printf("Error reading category.\n");
         fclose(file);
         return;
     }
-    // Remove trailing newline character, if any.
     newItem.category[strcspn(newItem.category, "\n")] = '\0';
 
-    // Prompt and read the item's description.
+    // Ask for the description
     printf("Enter description: ");
     if (fgets(newItem.description, MAX_DESC, stdin) == NULL) {
         printf("Error reading description.\n");
@@ -88,7 +75,7 @@ void add_item() {
     }
     newItem.description[strcspn(newItem.description, "\n")] = '\0';
 
-    // Prompt and read the condition of the item.
+    // Ask for the condition of the item
     printf("Enter condition (New/Good/Fair): ");
     if (scanf("%20s", newItem.condition) != 1) {
         printf("Invalid input for condition.\n");
@@ -98,28 +85,28 @@ void add_item() {
     }
     clear_input_buffer();
 
-    // Set the default status for a new item.
+    // By default, new items are available
     strcpy(newItem.status, "available");
 
-    // Determine a new unique item_id:
-    // Open the items file for reading and skip the header.
+    // Figure out the next item_id by reading everything and finding the highest existing
     int last_id = 0;
     FILE *readFile = fopen(ITEM_FILE_PATH, "r");
     if (readFile) {
-        char header[100];
-        fgets(header, sizeof(header), readFile); // Skip header line
+        char header[200];
+        fgets(header, sizeof(header), readFile); // skip the header
         Item temp;
-        // Read through each record; update last_id with the highest found item_id.
         while (fscanf(readFile, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
                       &temp.item_id, temp.donor_username, temp.category, temp.description,
                       temp.condition, temp.status) != EOF) {
-            last_id = temp.item_id;
+            if (temp.item_id > last_id) {
+                last_id = temp.item_id;
+            }
         }
         fclose(readFile);
     }
     newItem.item_id = last_id + 1;
 
-    // Append the new item record to the file.
+    // Write the new item record to the file
     fprintf(file, "%d,%s,%s,%s,%s,%s\n",
             newItem.item_id, newItem.donor_username, newItem.category,
             newItem.description, newItem.condition, newItem.status);
@@ -128,17 +115,7 @@ void add_item() {
     printf("Item successfully added!\n");
 }
 
-/*
- * display_items()
- * ----------------
- * Reads the items file and displays a nicely formatted table of all items that are "available" for donation.
- *
- * Process:
- *   1. Opens the items file for reading.
- *   2. Skips the header line.
- *   3. Iterates through each item record and prints only the records where status equals "available".
- *   4. If no available items are found, prints a message indicating the list is empty.
- */
+// Displays all items that are currently available
 void display_items() {
     FILE *file = fopen(ITEM_FILE_PATH, "r");
     if (!file) {
@@ -146,19 +123,26 @@ void display_items() {
         return;
     }
 
-    char header[100];
-    fgets(header, sizeof(header), file); // Skip the header line.
+    // Skip the header line
+    char header[200];
+    if (!fgets(header, sizeof(header), file)) {
+        // If the file is empty or unreadable
+        fclose(file);
+        printf("No items available.\n");
+        return;
+    }
+
     Item temp;
     int found = 0;
     printf("\nAvailable Items:\n");
     printf("--------------------------------------------------------------------------------\n");
     printf("ID | Donor        | Category     | Description                           | Condition | Status\n");
     printf("--------------------------------------------------------------------------------\n");
-    // Iterate through all item records.
+
+    // Print only items with status = "available"
     while (fscanf(file, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
                   &temp.item_id, temp.donor_username, temp.category, temp.description,
                   temp.condition, temp.status) != EOF) {
-        // Only display items marked as "available".
         if (strcmp(temp.status, "available") == 0) {
             printf("%-3d| %-12s| %-12s| %-36s| %-10s| %-10s\n",
                    temp.item_id, temp.donor_username, temp.category, temp.description,
@@ -172,40 +156,37 @@ void display_items() {
     }
 }
 
-/*
- * get_category_selection(char selected_category[])
- * --------------------------------------------------
- * Reads all available items, compiles a list of distinct categories,
- * displays them with assigned numbers, and prompts the user to select one.
- *
- * Parameters:
- *   selected_category - a character array where the selected category name will be stored.
- *
- * Returns:
- *   1 if a valid category was selected; 0 otherwise.
- */
+// Shows a list of distinct categories for the user to choose from, then returns it
 int get_category_selection(char selected_category[]) {
     FILE *file = fopen(ITEM_FILE_PATH, "r");
     if (!file) {
         printf("No items available.\n");
         return 0;
     }
-    char header[100];
-    fgets(header, sizeof(header), file); // Skip header.
-    
-    char categories[MAX_ITEMS][21]; // Array to hold distinct category names.
+
+    // Skip the header
+    char header[200];
+    if (!fgets(header, sizeof(header), file)) {
+        fclose(file);
+        printf("No items available.\n");
+        return 0;
+    }
+
+    char categories[MAX_ITEMS][21];
     int count = 0;
     Item temp;
-    // Iterate through items to collect distinct categories.
+
+    // Collect unique categories from available items
     while (fscanf(file, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
-                  &temp.item_id, temp.donor_username, temp.category, temp.description,
-                  temp.condition, temp.status) != EOF) {
+                  &temp.item_id, temp.donor_username, temp.category,
+                  temp.description, temp.condition, temp.status) != EOF) {
         if (strcmp(temp.status, "available") == 0) {
             int exists = 0;
             char lowerCat[21];
             strcpy(lowerCat, temp.category);
             to_lowercase(lowerCat);
-            // Check if category is already in the list.
+
+            // Check if it's already in the list
             for (int i = 0; i < count; i++) {
                 char lowerStored[21];
                 strcpy(lowerStored, categories[i]);
@@ -223,13 +204,12 @@ int get_category_selection(char selected_category[]) {
     }
     fclose(file);
     
-    // Check if any categories were found.
     if (count == 0) {
         printf("No available categories found.\n");
         return 0;
     }
     
-    // Display the distinct categories with assigned numbers.
+    // Print out the categories and let user pick
     printf("\nAvailable Categories:\n");
     for (int i = 0; i < count; i++) {
         printf("  %d. %s\n", i + 1, categories[i]);
@@ -246,52 +226,50 @@ int get_category_selection(char selected_category[]) {
         printf("Invalid selection.\n");
         return 0;
     }
-    // Return the selected category.
+
+    // Copy chosen category
     strcpy(selected_category, categories[selection - 1]);
     return 1;
 }
 
-/*
- * search_items()
- * ---------------
- * Allows the user to search for available items by category.
- * It calls get_category_selection() to display available categories with numbers,
- * then uses the selected category for a case-insensitive search in the items file.
- *
- * Process:
- *   1. Obtains the selected category using get_category_selection().
- *   2. Converts the category to lowercase.
- *   3. Opens the items file and skips the header.
- *   4. Iterates over the records and prints items whose category (in lowercase)
- *      matches the selected category and whose status is "available".
- */
+// Lets the user look for items in a certain category (case-insensitive)
 void search_items() {
     char search_category[21];
     if (!get_category_selection(search_category)) {
         return;
     }
     to_lowercase(search_category);
+
     FILE *file = fopen(ITEM_FILE_PATH, "r");
     if (!file) {
         printf("No items available.\n");
         return;
     }
-    char header[100];
-    fgets(header, sizeof(header), file); // Skip header.
+
+    // Skip the header
+    char header[200];
+    if (!fgets(header, sizeof(header), file)) {
+        fclose(file);
+        printf("No items available.\n");
+        return;
+    }
+
     Item temp;
     int found = 0;
+
     printf("\nSearch Results:\n");
     printf("--------------------------------------------------------------------------------\n");
     printf("ID | Donor        | Category     | Description                           | Condition | Status\n");
     printf("--------------------------------------------------------------------------------\n");
-    // Iterate through all items.
+
     while (fscanf(file, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
                   &temp.item_id, temp.donor_username, temp.category, temp.description,
                   temp.condition, temp.status) != EOF) {
         char lowerCat[21];
         strcpy(lowerCat, temp.category);
         to_lowercase(lowerCat);
-        // Check for match in category and available status.
+
+        // Must match category and be available
         if (strcmp(lowerCat, search_category) == 0 && strcmp(temp.status, "available") == 0) {
             printf("%-3d| %-12s| %-12s| %-36s| %-10s| %-10s\n",
                    temp.item_id, temp.donor_username, temp.category, temp.description,
@@ -305,50 +283,49 @@ void search_items() {
     }
 }
 
-/*
- * update_status(int item_id, char *new_status)
- * --------------------------------------------
- * Updates the status of an item (e.g., changing it from "available" to "donated").
- *
- * Process:
- *   1. Opens the items file for reading and skips the header.
- *   2. Reads each record, and if the record's item_id matches the provided item_id,
- *      updates the status field to the new_status.
- *   3. Writes all records to a temporary file with the updated status.
- *   4. Replaces the original items file with the temporary file.
- */
+// Changes an item's status if we find the matching item_id
 void update_status(int item_id, char *new_status) {
     FILE *file = fopen(ITEM_FILE_PATH, "r");
     if (!file) {
         printf("Error: Unable to open items.txt for reading.\n");
         return;
     }
-    char header[100];
-    fgets(header, sizeof(header), file); // Skip header.
+
+    // Skip the header
+    char header[200];
+    if (!fgets(header, sizeof(header), file)) {
+        fclose(file);
+        printf("Error: items file is empty or corrupted.\n");
+        return;
+    }
+
+    // Create a temp file to rewrite data
     FILE *tempFile = fopen("../data/temp_items.txt", "w");
     if (!tempFile) {
         printf("Error: Unable to create temporary file.\n");
         fclose(file);
         return;
     }
-    // Write the header to the temporary file.
+
+    // Write header to the temp file
     fprintf(tempFile, "item_id,donor_username,category,description,condition,status\n");
+
     Item temp;
+    // Go through the items and update status for matching ID
     while (fscanf(file, "%d,%20[^,],%20[^,],%99[^,],%20[^,],%20[^\n]\n",
-                  &temp.item_id, temp.donor_username, temp.category, temp.description,
-                  temp.condition, temp.status) != EOF) {
-        // If we find the record with the matching item_id, update its status.
+                  &temp.item_id, temp.donor_username, temp.category,
+                  temp.description, temp.condition, temp.status) != EOF) {
         if (temp.item_id == item_id) {
             strcpy(temp.status, new_status);
         }
-        // Write the (possibly updated) record to the temporary file.
         fprintf(tempFile, "%d,%s,%s,%s,%s,%s\n",
-                temp.item_id, temp.donor_username, temp.category, temp.description,
-                temp.condition, temp.status);
+                temp.item_id, temp.donor_username, temp.category,
+                temp.description, temp.condition, temp.status);
     }
     fclose(file);
     fclose(tempFile);
-    // Replace the original file with the new file.
+
+    // Replace the old file with the new one
     remove(ITEM_FILE_PATH);
     if (rename("../data/temp_items.txt", ITEM_FILE_PATH) != 0) {
         printf("Error: Unable to update items file.\n");

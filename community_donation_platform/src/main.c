@@ -1,48 +1,34 @@
- // main.c
-// This is the main entry point for the Community Donation Platform.
-// The program supports two types of users – donors and recipients – 
-// and displays different menus depending on the user role.
-// Donors can add items, view pending donation requests (inbox), and approve/reject requests.
-// Recipients can view available items, search for items, request items, and view their inventory.
+// main.c
+// This program starts our Community Donation Platform. We let people log in as a donor or recipient.
+// Donors can add items, see requests, and approve or reject them. Recipients can look at what's available, 
+// search by category, request items, and see what they've gotten.
 
-#include <stdio.h>      // Standard I/O functions (printf, scanf, etc.)
-#include <stdlib.h>     // Standard library functions (exit, etc.)
-#include <string.h>     // String manipulation functions
-#include "user.h"       // Functions and definitions for user authentication (login, signup)
-#include "items.h"      // Functions and definitions for item management (add, display, search, update_status)
-#include "requests.h"   // Functions and definitions for donation requests and notifications
+#include <stdio.h>      // Standard I/O functions
+#include <stdlib.h>     // Standard library functions
+#include <string.h>     // String handling
+#include "user.h"       // User authentication stuff
+#include "items.h"      // Functions for item management
+#include "requests.h"   // Functions for handling requests
 
-//------------------------------------
-// clear_input_buffer()
-// -----------------------------------
-// This helper function discards any remaining characters
-// in the input buffer (stdin) until a newline or EOF is reached.
-// This is useful after reading input (e.g., with scanf) to ensure
-// that stray newline characters do not interfere with subsequent input.
+// Clears leftover input so that stray characters won't mess up the next input
 static void clear_input_buffer() {
     int ch;
     while ((ch = getchar()) != '\n' && ch != EOF);
 }
 
-//------------------------------------
-// main()
-// ------------------------------------
-// The main function implements the primary loop of the program.
-// It begins with a login/signup loop and, once the user is authenticated,
-// displays a menu appropriate for the user's role (donor or recipient).
 int main() {
     int choice;
-    char logged_in_user[50];  // Holds the username of the currently logged-in user.
-    char logged_in_role[10];    // Holds the role ("donor" or "recipient") of the logged-in user.
+    char logged_in_user[50];  // stores the username of the current user
+    char logged_in_role[10];  // "donor" or "recipient"
 
-    // Print the welcome message.
+    // Greet the user
     printf("Welcome to the Community Donation Platform\n");
 
-    // Outer loop: continues running until the user selects to exit the program.
+    // Run until user chooses to exit
     while (1) {
         int logged_in = 0;
 
-        // Login/Signup Menu Loop: Continue to prompt until the user logs in successfully.
+        // Keep trying to log in or sign up until success
         while (!logged_in) {
             printf("\n===== Login Menu =====\n");
             printf("1. Login\n");
@@ -50,7 +36,6 @@ int main() {
             printf("3. Exit\n");
             printf("Enter your choice: ");
 
-            // If the user enters non-numeric input, prompt again.
             if (scanf("%d", &choice) != 1) {
                 printf("Invalid input. Please enter a number.\n");
                 clear_input_buffer();
@@ -58,45 +43,40 @@ int main() {
             }
             clear_input_buffer();
 
-            // Process the user's selection.
             switch (choice) {
                 case 1:
-                    // Call login() which verifies the username and password.
+                    // Try logging in
                     logged_in = login(logged_in_user, logged_in_role);
                     if (!logged_in)
                         printf("Login failed. Try again.\n");
                     break;
                 case 2:
-                    // Call signup() to register a new user.
+                    // Sign up a new user
                     signup();
                     printf("\nSignup successful! Please log in.\n");
                     break;
                 case 3:
-                    // Exit the program.
+                    // Quit the program
                     printf("Exiting program...\n");
                     exit(0);
                 default:
                     printf("Invalid choice. Try again.\n");
             }
-        } // End of login/signup loop.
+        }
 
-        // Main Menu Loop for Logged-In Users.
-        // This loop remains active until the user chooses to log out.
+        // If we get here, user is logged in
         int logout = 0;
         while (!logout) {
-            // Check the role of the logged-in user to display the appropriate menu.
-            // Donor Menu: If user is a donor.
+            // Show donor menu
             if (strcmp(logged_in_role, "donor") == 0) {
-                // Calculate the number of pending requests (notifications) for the donor.
                 int pending_count = count_pending_requests(logged_in_user);
 
-                // Display the donor main menu with six options.
                 printf("\n===== Main Menu =====\n");
-                printf("1. View Available Items\n");     // List all items that are available to be donated.
-                printf("2. Search for an Item\n");          // Allow the donor to search items by category.
-                printf("3. Add an Item\n");                 // Let the donor add a new donation item.
-                printf("4. View Inbox (%d)\n", pending_count); // Show number of pending requests.
-                printf("5. Approve/Reject Requests\n");     // Allow the donor to approve or reject donation requests.
+                printf("1. View Available Items\n");
+                printf("2. Search for an Item\n");
+                printf("3. Add an Item\n");
+                printf("4. View Inbox (%d)\n", pending_count);
+                printf("5. Approve/Reject Requests\n");
                 printf("6. Logout\n");
                 printf("Enter your choice: ");
 
@@ -107,39 +87,37 @@ int main() {
                 }
                 clear_input_buffer();
 
-                // Switch based on donor's menu selection.
                 switch (choice) {
                     case 1:
-                        display_items();  // Display all available donation items.
+                        display_items();
                         break;
                     case 2:
-                        search_items();   // Search available items by selected category.
+                        search_items();
                         break;
                     case 3:
-                        add_item();       // Prompt for adding a new item to the donation list.
+                        add_item();
                         break;
                     case 4:
-                        view_inbox(logged_in_user);  // Display pending donation requests (inbox) for the donor.
+                        view_inbox(logged_in_user);
                         break;
                     case 5:
-                        approve_request(logged_in_user); // Provide a list of pending requests and allow approval/rejection.
+                        approve_request(logged_in_user);
                         break;
                     case 6:
                         printf("Logging out...\n");
-                        logout = 1;    // Break out of the main menu loop to return to the login/signup menu.
+                        logout = 1;
                         break;
                     default:
                         printf("Invalid choice. Try again.\n");
                 }
             }
-            // Recipient Menu: If user is a recipient.
+            // Show recipient menu
             else if (strcmp(logged_in_role, "recipient") == 0) {
-                // Display the recipient main menu with five options.
                 printf("\n===== Main Menu =====\n");
-                printf("1. View Available Items\n");     // List all items that are available.
-                printf("2. Search for an Item\n");          // Allow searching for items by category.
-                printf("3. Request an Item\n");             // Let the recipient request an item.
-                printf("4. View Inventory\n");              // Show items that have been approved (received) by the recipient.
+                printf("1. View Available Items\n");
+                printf("2. Search for an Item\n");
+                printf("3. Request an Item\n");
+                printf("4. View Inventory\n");
                 printf("5. Logout\n");
                 printf("Enter your choice: ");
 
@@ -150,30 +128,29 @@ int main() {
                 }
                 clear_input_buffer();
 
-                // Switch based on recipient's menu selection.
                 switch (choice) {
                     case 1:
-                        display_items();   // Display available items.
+                        display_items();
                         break;
                     case 2:
-                        search_items();    // Search for items by category.
+                        search_items();
                         break;
                     case 3:
-                        request_item(logged_in_user); // Request an item; the function lists available items first.
+                        request_item(logged_in_user);
                         break;
                     case 4:
-                        view_inventory(logged_in_user); // Display the recipient's inventory of approved items.
+                        view_inventory(logged_in_user);
                         break;
                     case 5:
                         printf("Logging out...\n");
-                        logout = 1;    // Exit recipient's main menu.
+                        logout = 1;
                         break;
                     default:
                         printf("Invalid choice. Try again.\n");
                 }
             }
-        } // End of main menu loop for logged-in user.
-    } // End of outer loop (program runs continuously until exit is selected).
+        }
+    }
 
     return 0;
 }

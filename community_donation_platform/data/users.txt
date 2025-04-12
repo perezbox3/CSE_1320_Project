@@ -1,5 +1,1 @@
 username,password,role
-john_doe,12345,donor
-jane_smith,password,recipient
-perezbox,427923,donor
-perezbox,427923,donorperezbox,427923,donor

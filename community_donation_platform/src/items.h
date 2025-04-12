@@ -1,3 +1,7 @@
+// This file sets up our "Item" structure and function prototypes for a donation system.
+// We define the maximum sizes for data, and we have a path to the "items.txt" file.
+// There's also a struct that describes an item and some function declarations to use it.
+
 #ifndef ITEMS_H
 #define ITEMS_H
 
@@ -5,71 +9,41 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * MAX_ITEMS defines the maximum number of items that can be stored.
- * MAX_DESC defines the maximum length of an item's description.
- */
+// We can store up to 100 items and have descriptions up to 100 characters
 #define MAX_ITEMS 100
 #define MAX_DESC 100
 
-/*
- * ITEM_FILE_PATH is the relative file path to the text file that stores the items.
- * The file is expected to have a header line followed by item records.
- */
+// This is where our items get saved and read
 #define ITEM_FILE_PATH "../data/items.txt"
 
-/*
- * Structure: Item
- * ----------------
- * Represents an item available for donation.
- *
- * Fields:
- *   item_id        - A unique integer identifier for the item.
- *   donor_username - A string (max 20 characters plus the null terminator) representing
- *                    the username of the donor who is donating the item.
- *   category       - The category of the item (e.g., "Books", "Electronics").
- *   description    - A brief text description of the item.
- *   condition      - The condition of the item (expected values: "New", "Good", "Fair").
- *   status         - The current status of the item (e.g., "available", "donated").
- */
+// Structure for donation items
 typedef struct {
-    int item_id;
-    char donor_username[21];
-    char category[21];
-    char description[MAX_DESC];
-    char condition[21];
-    char status[21];
+    int item_id;               // Unique ID for the item
+    char donor_username[21];   // Username of the donor
+    char category[21];         // Item category like "Books", "Electronics", etc.
+    char description[MAX_DESC]; // A short text describing the item
+    char condition[21];        // Like "New", "Good", "Fair"
+    char status[21];           // "available", "donated", etc.
 } Item;
 
-/*
- * Function Prototypes:
- *
- * add_item(): 
- *   Prompts the user for details of the item and writes the new item to the items file.
- *
- * display_items():
- *   Reads the items file and prints a table of items whose status is "available".
- *
- * search_items():
- *   Lets the user search for items by category. This function calls get_category_selection()
- *   to display a numbered list of categories and then performs a case-insensitive search.
- *
- * get_category_selection(char selected_category[]):
- *   Reads the items file, compiles a list of distinct categories from the "available" items,
- *   displays them with numbers, and prompts the user to select one. The selected category is
- *   returned via the selected_category parameter.
- *
- * to_lowercase(char *str):
- *   Converts the provided string to lowercase; useful for case-insensitive comparisons.
- *
- * update_status(int item_id, char *new_status):
- *   Updates the status of an item specified by item_id in the items file.
- */
+// Below are the functions we use in our program:
+
+// Lets user add a new item (asks for info, then saves it to items file)
 void add_item();
+
+// Shows all items that are marked as "available"
 void display_items();
+
+// Lets user pick a category and shows items matching that category
 void search_items();
+
+// Asks user to pick from a list of categories (returns selected one)
 int get_category_selection(char selected_category[]);
+
+// Makes a string lowercase for case-insensitive matching
 void to_lowercase(char *str);
+
+// Changes the status of an item (like from "available" to "donated")
 void update_status(int item_id, char *new_status);
 
 #endif /* ITEMS_H */
