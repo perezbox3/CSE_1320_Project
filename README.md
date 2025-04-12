@@ -103,5 +103,5 @@ request_id,item_id,recipient_username,status
 - **CSV Import/Export** for better data handling.
 
 ---
-This document serves as a guide for structuring and managing our project efficiently.
+This document serves as a guide for structuring and managing our project efficiently. How to compile the code gcc -Wall -o donation_platform main.c user.c items.c requests.c, you will need to be in the src directory to do so, then type ./donation_platform.
 
