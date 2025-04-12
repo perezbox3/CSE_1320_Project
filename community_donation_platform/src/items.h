@@ -1,11 +1,3 @@
-/*
- * items.h
- *
- * This header file defines everything related to donation items for our
- * Community Donation Platform. It includes constants, the Item structure,
- * and prototypes for all the functions we use to add, display, and search items.
- */
-
 #ifndef ITEMS_H
 #define ITEMS_H
 
@@ -13,26 +5,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Maximum number of items the system can handle
+/*
+ * MAX_ITEMS defines the maximum number of items that can be stored.
+ * MAX_DESC defines the maximum length of an item's description.
+ */
 #define MAX_ITEMS 100
-
-// Maximum length allowed for item descriptions
 #define MAX_DESC 100
 
-// Path to the file where we store item details
+/*
+ * ITEM_FILE_PATH is the relative file path to the text file that stores the items.
+ * The file is expected to have a header line followed by item records.
+ */
 #define ITEM_FILE_PATH "../data/items.txt"
 
 /*
  * Structure: Item
+ * ----------------
+ * Represents an item available for donation.
  *
- * Stores information about each item donated by users.
- *
- * item_id        - Unique ID number for the item.
- * donor_username - Username of the person donating the item.
- * category       - Type/category of the item (like "Books" or "Electronics").
- * description    - Short description about the item.
- * condition      - Condition of the item ("New", "Good", "Fair").
- * status         - Current availability status ("available" or "donated").
+ * Fields:
+ *   item_id        - A unique integer identifier for the item.
+ *   donor_username - A string (max 20 characters plus the null terminator) representing
+ *                    the username of the donor who is donating the item.
+ *   category       - The category of the item (e.g., "Books", "Electronics").
+ *   description    - A brief text description of the item.
+ *   condition      - The condition of the item (expected values: "New", "Good", "Fair").
+ *   status         - The current status of the item (e.g., "available", "donated").
  */
 typedef struct {
     int item_id;
@@ -45,24 +43,33 @@ typedef struct {
 
 /*
  * Function Prototypes:
+ *
+ * add_item(): 
+ *   Prompts the user for details of the item and writes the new item to the items file.
+ *
+ * display_items():
+ *   Reads the items file and prints a table of items whose status is "available".
+ *
+ * search_items():
+ *   Lets the user search for items by category. This function calls get_category_selection()
+ *   to display a numbered list of categories and then performs a case-insensitive search.
+ *
+ * get_category_selection(char selected_category[]):
+ *   Reads the items file, compiles a list of distinct categories from the "available" items,
+ *   displays them with numbers, and prompts the user to select one. The selected category is
+ *   returned via the selected_category parameter.
+ *
+ * to_lowercase(char *str):
+ *   Converts the provided string to lowercase; useful for case-insensitive comparisons.
+ *
+ * update_status(int item_id, char *new_status):
+ *   Updates the status of an item specified by item_id in the items file.
  */
-
-// Lets the user add a new donation item to the system
 void add_item();
-
-// Shows all donation items that are currently available
 void display_items();
-
-// Allows searching for items by category
 void search_items();
-
-// Displays categories as a numbered list and lets the user select one
 int get_category_selection(char selected_category[]);
-
-// Converts any text string to lowercase (for easy searches)
 void to_lowercase(char *str);
-
-// Changes the status of an item (for example, marking it as "donated")
 void update_status(int item_id, char *new_status);
 
 #endif /* ITEMS_H */
